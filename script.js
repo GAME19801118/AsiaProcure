@@ -51,67 +51,69 @@ window.addEventListener('scroll', () => {
 const contactForm = document.getElementById('contactForm');
 
 if (contactForm) {
-    contactForm.addEventListener('submit', function (e) {
+    contactForm.addEventListener('submit', async function (e) {
         e.preventDefault();
 
+        const submitBtn = contactForm.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.innerHTML;
+
         // Get form data
-        const formData = {
-            name: document.getElementById('name').value.trim(),
-            email: document.getElementById('email').value.trim(),
-            company: document.getElementById('company').value.trim(),
-            service: document.getElementById('service').value,
-            message: document.getElementById('message').value.trim()
-        };
+        const formData = new FormData(contactForm);
+        const data = Object.fromEntries(formData.entries());
 
         // Validate required fields
-        if (!formData.name || !formData.email || !formData.message) {
+        if (!data.name || !data.email || !data.message) {
             showNotification('Please fill in all required fields', 'error');
             return;
         }
 
         // Email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(formData.email)) {
+        if (!emailRegex.test(data.email)) {
             showNotification('Please enter a valid email address', 'error');
             return;
         }
 
-        // Service names mapping
-        const serviceNames = {
-            'strategic': 'Strategic Sourcing',
-            'quality': 'Quality Assurance',
-            'procurement': 'Procurement Management',
-            'logistics': 'Logistics & Supply Chain',
-            'intelligence': 'Market Intelligence',
-            'compliance': 'Compliance & Legal'
-        };
+        // Show loading state
+        submitBtn.innerHTML = 'Sending...';
+        submitBtn.disabled = true;
 
-        const serviceName = serviceNames[formData.service] || 'General Inquiry';
+        try {
+            // REPLACE THIS WITH YOUR FORMSPREE ENDPOINT
+            // Example: https://formspree.io/f/xyzaqwer
+            const FORMSPREE_ENDPOINT = 'https://formspree.io/f/mjknrndb';
 
-        // Create mailto link
-        const subject = encodeURIComponent(`New Inquiry: ${serviceName}`);
-        const body = encodeURIComponent(
-            `Name: ${formData.name}\n` +
-            `Email: ${formData.email}\n` +
-            `Company: ${formData.company || 'Not provided'}\n` +
-            `Service Interest: ${serviceName}\n\n` +
-            `Message:\n${formData.message}\n\n` +
-            `---\n` +
-            `Sent from AsiaProcure website`
-        );
+            if (FORMSPREE_ENDPOINT.includes('YOUR_FORM_ID_HERE')) {
+                throw new Error('Please configure your Formspree Form ID in script.js');
+            }
 
-        const mailtoLink = `mailto:195497901@qq.com?subject=${subject}&body=${body}`;
+            const response = await fetch(FORMSPREE_ENDPOINT, {
+                method: 'POST',
+                body: JSON.stringify(data),
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
 
-        // Open email client
-        window.location.href = mailtoLink;
-
-        // Show success notification
-        showNotification('Opening your email client... Your inquiry will be sent to our team.', 'success');
-
-        // Reset form
-        setTimeout(() => {
-            contactForm.reset();
-        }, 1000);
+            if (response.ok) {
+                showNotification('Message sent successfully! We will contact you shortly.', 'success');
+                contactForm.reset();
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to send message');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            if (error.message.includes('configure')) {
+                showNotification('⚠️ Setup Required: Please add your Formspree ID in script.js', 'warning');
+            } else {
+                showNotification('Failed to send message. Please try again later.', 'error');
+            }
+        } finally {
+            submitBtn.innerHTML = originalBtnText;
+            submitBtn.disabled = false;
+        }
     });
 }
 
